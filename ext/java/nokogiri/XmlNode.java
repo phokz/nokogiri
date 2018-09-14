@@ -33,7 +33,16 @@
 package nokogiri;
 
 import static java.lang.Math.max;
-import static nokogiri.internals.NokogiriHelpers.*;
+import static nokogiri.internals.NokogiriHelpers.clearXpathContext;
+import static nokogiri.internals.NokogiriHelpers.convertEncoding;
+import static nokogiri.internals.NokogiriHelpers.convertString;
+import static nokogiri.internals.NokogiriHelpers.getCachedNodeOrCreate;
+import static nokogiri.internals.NokogiriHelpers.getNokogiriClass;
+import static nokogiri.internals.NokogiriHelpers.isBlank;
+import static nokogiri.internals.NokogiriHelpers.nodeArrayToRubyArray;
+import static nokogiri.internals.NokogiriHelpers.nonEmptyStringOrNil;
+import static nokogiri.internals.NokogiriHelpers.rubyStringToString;
+import static nokogiri.internals.NokogiriHelpers.stringOrNil;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -43,18 +52,12 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import nokogiri.internals.HtmlDomParserContext;
-import nokogiri.internals.NokogiriHelpers;
-import nokogiri.internals.NokogiriNamespaceCache;
-import nokogiri.internals.SaveContextVisitor;
-import nokogiri.internals.XmlDomParserContext;
-
 import org.apache.xerces.dom.CoreDocumentImpl;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyClass;
-import org.jruby.RubyInteger;
 import org.jruby.RubyFixnum;
+import org.jruby.RubyInteger;
 import org.jruby.RubyModule;
 import org.jruby.RubyObject;
 import org.jruby.RubyString;
@@ -75,6 +78,12 @@ import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.w3c.dom.Text;
+
+import nokogiri.internals.HtmlDomParserContext;
+import nokogiri.internals.NokogiriHelpers;
+import nokogiri.internals.NokogiriNamespaceCache;
+import nokogiri.internals.SaveContextVisitor;
+import nokogiri.internals.XmlDomParserContext;
 
 /**
  * Class for Nokogiri::XML::Node
@@ -695,7 +704,7 @@ public class XmlNode extends RubyObject {
 
     @JRubyMethod
     public IRubyObject children(ThreadContext context) {
-        XmlNodeSet xmlNodeSet = XmlNodeSet.create(context.runtime);
+        XmlNodeSet xmlNodeSet = XmlNodeSet.newEmptyNodeSet(context);
 
         NodeList nodeList = node.getChildNodes();
         if (nodeList.getLength() > 0) {
@@ -728,8 +737,8 @@ public class XmlNode extends RubyObject {
     public IRubyObject element_children(ThreadContext context) {
         List<Node> elementNodes = new ArrayList<Node>();
         addElements(node, elementNodes, false);
-        if (elementNodes.size() == 0) return XmlNodeSet.newEmptyNodeSet(context);
-        RubyArray array = NokogiriHelpers.nodeArrayToRubyArray(context.getRuntime(), elementNodes.toArray(new Node[0]));
+        IRubyObject[] array = NokogiriHelpers.nodeArrayToArray(context.runtime,
+                                                               elementNodes.toArray(new Node[0]));
         XmlNodeSet xmlNodeSet = XmlNodeSet.newXmlNodeSet(context, array);
         return xmlNodeSet;
     }
@@ -833,7 +842,7 @@ public class XmlNode extends RubyObject {
                 documentErrors.add(docErrors.get(i));
             }
             document.setInstanceVariable("@errors", documentErrors);
-            XmlNodeSet xmlNodeSet = XmlNodeSet.newXmlNodeSet(context, RubyArray.newArray(runtime));
+            XmlNodeSet xmlNodeSet = XmlNodeSet.newXmlNodeSet(context, new IRubyObject[0]);
             return xmlNodeSet;
         }
 
@@ -845,10 +854,9 @@ public class XmlNode extends RubyObject {
         } else {
             first = doc.node.getFirstChild();
         }
-        RubyArray nodeArray = RubyArray.newArray(runtime);
-        nodeArray.add(NokogiriHelpers.getCachedNodeOrCreate(runtime, first));
 
-        XmlNodeSet xmlNodeSet = XmlNodeSet.newXmlNodeSet(context, nodeArray);
+        IRubyObject[] nodes = new IRubyObject[]{NokogiriHelpers.getCachedNodeOrCreate(runtime, first)};
+        XmlNodeSet xmlNodeSet = XmlNodeSet.newXmlNodeSet(context, nodes);
         return xmlNodeSet;
     }
 
